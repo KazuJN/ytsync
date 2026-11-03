@@ -1,0 +1,1498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Synced comments — prototype</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+  <style>
+    :root {
+      --md-sys-color-primary: #ff0033;
+      --md-sys-color-on-primary: #ffffff;
+      --md-sys-color-surface: #ffffff;
+      --md-sys-color-surface-dim: #f2f2f2;
+      --md-sys-color-surface-container: #f2f2f2;
+      --md-sys-color-surface-container-high: #e8e8e8;
+      --md-sys-color-on-surface: #0f0f0f;
+      --md-sys-color-on-surface-variant: #606060;
+      --md-sys-color-outline: #c4c4c4;
+      --md-sys-color-outline-variant: #e0e0e0;
+      --md-sys-color-secondary-container: #e8f0fe;
+      --md-sys-color-on-secondary-container: #1a1a1a;
+      --md-sys-color-tertiary: #065fd4;
+      --md-sys-color-sync-marker: #ff9800;
+      --md-sys-color-sync-active: #fff3e0;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: Roboto, system-ui, sans-serif;
+      background: var(--md-sys-color-surface-dim);
+      color: var(--md-sys-color-on-surface);
+      min-height: 100vh;
+    }
+
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      font-size: 24px;
+      line-height: 1;
+      user-select: none;
+    }
+
+    .app-bar {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      padding: 0 16px;
+      height: 56px;
+      background: var(--md-sys-color-surface);
+      border-bottom: 1px solid var(--md-sys-color-outline-variant);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-weight: 700;
+      font-size: 18px;
+      letter-spacing: -0.5px;
+    }
+
+    .logo-icon {
+      width: 32px;
+      height: 22px;
+      background: var(--md-sys-color-primary);
+      border-radius: 6px 6px 6px 2px;
+      display: grid;
+      place-items: center;
+    }
+
+    .logo-icon .material-symbols-outlined {
+      font-size: 16px;
+      color: white;
+      font-variation-settings: 'FILL' 1;
+    }
+
+    .search-bar {
+      flex: 1;
+      max-width: 420px;
+      min-width: 160px;
+      display: flex;
+      height: 40px;
+      border: 1px solid var(--md-sys-color-outline);
+      border-radius: 40px;
+      overflow: hidden;
+      background: var(--md-sys-color-surface);
+    }
+
+    .search-bar input {
+      flex: 1;
+      border: none;
+      padding: 0 16px;
+      font: inherit;
+      outline: none;
+      background: transparent;
+    }
+
+    .search-bar button {
+      width: 64px;
+      border: none;
+      border-left: 1px solid var(--md-sys-color-outline);
+      background: var(--md-sys-color-surface-container);
+      cursor: default;
+      display: grid;
+      place-items: center;
+      color: var(--md-sys-color-on-surface-variant);
+    }
+
+    .proto-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-left: auto;
+      flex-shrink: 0;
+      font-size: 11px;
+      color: var(--md-sys-color-on-surface-variant);
+    }
+
+    .proto-controls fieldset {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--md-sys-color-outline-variant);
+      border-radius: 8px;
+      margin: 0;
+      padding: 4px 8px;
+      background: var(--md-sys-color-surface-dim);
+    }
+
+    .proto-controls label {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+      white-space: nowrap;
+      color: var(--md-sys-color-on-surface);
+      font-weight: 500;
+    }
+
+    .proto-controls input {
+      accent-color: var(--md-sys-color-primary);
+    }
+
+    .proto-controls label.is-disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 402px;
+      gap: 24px;
+      max-width: 1720px;
+      margin: 0 auto;
+      padding: 24px 24px 48px;
+      align-items: start;
+    }
+
+    .layout[data-layout="default"] {
+      grid-template-areas:
+        "player recs"
+        "meta recs"
+        "comments recs";
+    }
+
+    .layout[data-layout="sidebar-comments"] {
+      grid-template-areas:
+        "player comments"
+        "meta comments"
+        "recs recs";
+    }
+
+    .layout[data-layout="fixed-comments"] {
+      grid-template-areas:
+        "player comments"
+        "meta comments"
+        "recs comments";
+    }
+
+    .player-region { grid-area: player; min-width: 0; }
+    .meta-region { grid-area: meta; min-width: 0; }
+    .comments-region { grid-area: comments; min-width: 0; }
+    .recs-region { grid-area: recs; min-width: 0; }
+
+    .comments-section {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .comment-list-scroll {
+      position: relative;
+      min-height: 0;
+      overflow-anchor: none;
+    }
+
+    /* Default: compose stays above the list (classic stack) */
+    .layout[data-layout="default"] .comments-header { order: 0; }
+    .layout[data-layout="default"] .compose { order: 1; }
+    .layout[data-layout="default"] .comment-list-scroll { order: 2; }
+
+    .layout[data-layout="default"] .comments-region {
+      margin-top: 8px;
+    }
+
+    .layout[data-layout="default"] .recs-region {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      position: sticky;
+      top: 72px;
+    }
+
+    /* Sidebar: comments match player + description and do not stretch the rows.
+       The list scrolls inside; recommendations run full width under the divider. */
+    .layout[data-layout="sidebar-comments"] .comments-region {
+      align-self: stretch;
+      position: relative;
+      min-height: 0;
+      overflow: hidden;
+      border-left: 1px solid var(--md-sys-color-outline-variant);
+    }
+
+    .layout[data-layout="sidebar-comments"] .comments-section {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 16px;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .layout[data-layout="sidebar-comments"] .comments-header,
+    .layout[data-layout="fixed-comments"] .comments-header {
+      flex-shrink: 0;
+      margin-bottom: 12px;
+    }
+
+    .layout[data-layout="sidebar-comments"] .comment-list-scroll,
+    .layout[data-layout="fixed-comments"] .comment-list-scroll {
+      flex: 1;
+      overflow-y: auto;
+      min-height: 0;
+    }
+
+    .layout[data-layout="sidebar-comments"] .compose,
+    .layout[data-layout="fixed-comments"] .compose {
+      flex-shrink: 0;
+      margin-bottom: 0;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--md-sys-color-outline-variant);
+    }
+
+    .layout[data-layout="sidebar-comments"] .recs-region {
+      margin-top: 8px;
+    }
+
+    /* Fixed: comments pinned to viewport; left column scrolls independently.
+       top is kept in sync with .app-bar bottom via JS (banner + sticky bar). */
+    .layout[data-layout="fixed-comments"] .comments-region {
+      position: fixed;
+      top: 100px;
+      bottom: 24px;
+      width: 402px;
+      /* Match centered layout: max 1720px + 24px page padding */
+      right: max(24px, calc((100vw - 1720px) / 2 + 24px));
+      overflow: hidden;
+      padding-left: 16px;
+      border-left: 1px solid var(--md-sys-color-outline-variant);
+      z-index: 2;
+      box-sizing: border-box;
+    }
+
+    .layout[data-layout="fixed-comments"] .comments-section {
+      height: 100%;
+    }
+
+    .layout[data-layout="fixed-comments"] .recs-region {
+      margin-top: 8px;
+      width: 100%;
+      max-width: 100%;
+    }
+
+    .recs-region.horizontal {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px 16px;
+    }
+
+    .recs-region.horizontal .suggestion {
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .recs-region.horizontal .suggestion-thumb {
+      width: 100%;
+      height: auto;
+      aspect-ratio: 16 / 9;
+    }
+
+    .layout[data-player-overlay="off"] .sync-overlay,
+    .layout[data-player-overlay="off"] .seek-markers,
+    .layout[data-player-overlay="off"] .sync-chip {
+      display: none !important;
+    }
+
+    @media (max-width: 1200px) {
+      .layout,
+      .layout[data-layout="default"],
+      .layout[data-layout="sidebar-comments"],
+      .layout[data-layout="fixed-comments"] {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+          "player"
+          "meta"
+          "comments"
+          "recs";
+      }
+      .layout[data-layout="sidebar-comments"] .comments-region,
+      .layout[data-layout="fixed-comments"] .comments-region {
+        position: static;
+        top: auto;
+        right: auto;
+        bottom: auto;
+        width: auto;
+        height: auto;
+        overflow: visible;
+        border-left: none;
+        padding-left: 0;
+      }
+      .layout[data-layout="sidebar-comments"] .comments-section,
+      .layout[data-layout="fixed-comments"] .comments-section {
+        position: static;
+        inset: auto;
+        height: auto;
+      }
+      .layout[data-layout="sidebar-comments"] .comment-list-scroll,
+      .layout[data-layout="fixed-comments"] .comment-list-scroll {
+        overflow: visible;
+        flex: none;
+      }
+      .recs-region.horizontal {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    .player-shell {
+      position: relative;
+      background: #000;
+      border-radius: var(--md-radius-lg, var(--radius-lg));
+      overflow: hidden;
+      aspect-ratio: 16 / 9;
+    }
+
+    .player-video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      background: #000;
+    }
+
+    .sync-overlay {
+      position: absolute;
+      left: 16px;
+      right: 16px;
+      bottom: 88px;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.25s, transform 0.25s;
+    }
+
+    .sync-overlay.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .sync-overlay-card {
+      display: flex;
+      gap: 12px;
+      padding: 12px 16px;
+      background: rgba(15, 15, 15, 0.72);
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(255,255,255,0.12);
+      max-width: 480px;
+    }
+
+    .sync-overlay-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--md-sys-color-sync-marker);
+      color: #000;
+      font-weight: 700;
+      font-size: 14px;
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+    }
+
+    .sync-overlay-body { min-width: 0; }
+
+    .sync-overlay-meta {
+      font-size: 12px;
+      color: rgba(255,255,255,0.6);
+      margin-bottom: 4px;
+    }
+
+    .sync-overlay-meta strong { color: #fff; font-weight: 500; }
+
+    .sync-overlay-text {
+      font-size: 14px;
+      line-height: 1.4;
+      color: rgba(255,255,255,0.95);
+    }
+
+    .controls-layer {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 0 12px 8px;
+      background: linear-gradient(transparent, rgba(0,0,0,0.85));
+    }
+
+    .seek-fold {
+      position: relative;
+      padding: 8px 4px 6px;
+    }
+
+    /* One physical bar — fill is clipped inside so it can't drift off the rail */
+    .seek-track {
+      position: relative;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      touch-action: none;
+      --progress: 0%;
+    }
+
+    .seek-bar {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      height: 4px;
+      margin-top: -2px;
+      border-radius: 2px;
+      background: linear-gradient(
+        to right,
+        var(--md-sys-color-primary) 0,
+        var(--md-sys-color-primary) var(--progress),
+        rgba(255, 255, 255, 0.3) var(--progress),
+        rgba(255, 255, 255, 0.3) 100%
+      );
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .seek-thumb {
+      position: absolute;
+      top: 50%;
+      left: 0%;
+      width: 14px;
+      height: 14px;
+      margin-left: -7px;
+      margin-top: -7px;
+      border-radius: 50%;
+      background: var(--md-sys-color-primary);
+      border: 2px solid #fff;
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    .seek-markers {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .seek-marker {
+      position: absolute;
+      top: 50%;
+      width: 12px;
+      height: 8px;
+      margin-left: -6px;
+      margin-top: -4px;
+      border-radius: 0;
+      background: transparent;
+      pointer-events: auto;
+      cursor: pointer;
+      border: none;
+      padding: 0;
+    }
+
+    .seek-marker::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 1px;
+      bottom: 1px;
+      width: 2px;
+      margin-left: -1px;
+      border-radius: 1px;
+      background: rgba(255, 255, 255, 0.42);
+    }
+
+    .seek-marker:hover::before,
+    .seek-marker:focus-visible::before {
+      background: rgba(255, 255, 255, 0.78);
+    }
+
+    .seek-marker:focus-visible {
+      outline: none;
+    }
+
+    .seek-marker.active::before {
+      background: rgba(255, 255, 255, 0.9);
+    }
+
+    .seek-marker-tooltip {
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.9);
+      color: #fff;
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s;
+    }
+
+    .seek-marker:hover .seek-marker-tooltip,
+    .seek-marker:focus-visible .seek-marker-tooltip {
+      opacity: 1;
+    }
+
+    .time-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 4px;
+      color: #fff;
+      font-size: 12px;
+      font-family: 'Roboto Mono', monospace;
+    }
+
+    .time-row-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+      border: none;
+      border-radius: 50%;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+    }
+
+    .icon-btn:hover { background: rgba(255,255,255,0.1); }
+
+    .sync-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 10px;
+      border-radius: 16px;
+      background: rgba(255, 152, 0, 0.25);
+      color: #ffb74d;
+      font-size: 11px;
+      font-weight: 500;
+      font-family: Roboto, sans-serif;
+    }
+
+    .sync-chip .material-symbols-outlined { font-size: 14px; }
+
+    .video-meta {
+      padding: 12px 0 8px;
+    }
+
+    .video-title {
+      font-size: 20px;
+      font-weight: 600;
+      line-height: 1.3;
+      margin-bottom: 12px;
+    }
+
+    .channel-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--md-sys-color-outline-variant);
+    }
+
+    .channel-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #1a2744 center / cover no-repeat;
+      color: transparent;
+      font-size: 0;
+      flex-shrink: 0;
+    }
+
+    .channel-name { font-weight: 500; font-size: 16px; }
+
+    .subscribers { font-size: 12px; color: var(--md-sys-color-on-surface-variant); }
+
+    .md-filled-btn {
+      margin-left: auto;
+      padding: 0 16px;
+      height: 36px;
+      border: none;
+      border-radius: 18px;
+      background: var(--md-sys-color-on-surface);
+      color: var(--md-sys-color-surface);
+      font: 500 14px Roboto, sans-serif;
+      cursor: default;
+    }
+
+    .comments-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .comments-header h2 {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .filter-chips {
+      display: flex;
+      gap: 8px;
+    }
+
+    .md-chip {
+      height: 32px;
+      padding: 0 12px;
+      border-radius: 8px;
+      border: none;
+      font: 500 14px Roboto, sans-serif;
+      cursor: pointer;
+      background: var(--md-sys-color-surface-container-high);
+      color: var(--md-sys-color-on-surface);
+    }
+
+    .md-chip.selected {
+      background: var(--md-sys-color-on-surface);
+      color: var(--md-sys-color-surface);
+    }
+
+    .compose {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .compose-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #26a69a;
+      color: #fff;
+      font-weight: 700;
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+    }
+
+    .compose-field {
+      flex: 1;
+      border-bottom: 1px solid var(--md-sys-color-outline);
+      padding-bottom: 8px;
+    }
+
+    .compose-field input {
+      width: 100%;
+      border: none;
+      font: inherit;
+      outline: none;
+      padding: 8px 0;
+      background: transparent;
+    }
+
+    .comment-list { display: flex; flex-direction: column; gap: 4px; }
+
+    .comment-item {
+      display: flex;
+      gap: 16px;
+      padding: 12px;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: background 0.32s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .comment-item:hover {
+      background: var(--md-sys-color-surface-container);
+    }
+
+    .comment-item.active {
+      background: var(--md-sys-color-sync-active);
+      border-color: var(--md-sys-color-sync-marker);
+    }
+
+    .comment-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      font-weight: 700;
+      font-size: 14px;
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+      color: #fff;
+    }
+
+    .comment-body { flex: 1; min-width: 0; }
+
+    .comment-author-row {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 4px;
+      flex-wrap: wrap;
+    }
+
+    .comment-author { font-size: 13px; font-weight: 500; }
+
+    .comment-when { font-size: 12px; color: var(--md-sys-color-on-surface-variant); }
+
+    .comment-text {
+      font-size: 14px;
+      line-height: 1.5;
+      color: var(--md-sys-color-on-surface);
+    }
+
+    .comment-text .ts-inline {
+      color: var(--md-sys-color-tertiary);
+      font-weight: 500;
+      font-family: 'Roboto Mono', monospace;
+      font-size: 13px;
+    }
+
+    .suggestion {
+      display: flex;
+      gap: 8px;
+      cursor: default;
+    }
+
+    .suggestion-thumb {
+      position: relative;
+      width: 168px;
+      height: 94px;
+      border-radius: var(--radius-sm);
+      background: #1c1c1c center / cover no-repeat;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+
+    .suggestion-dur {
+      position: absolute;
+      right: 4px;
+      bottom: 4px;
+      padding: 1px 4px;
+      border-radius: 2px;
+      background: rgba(0, 0, 0, 0.75);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 500;
+      line-height: 1.4;
+    }
+
+    .suggestion-meta { flex: 1; min-width: 0; }
+
+    .suggestion-title {
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 1.3;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .suggestion-channel {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 6px;
+      font-size: 12px;
+      color: var(--md-sys-color-on-surface-variant);
+    }
+
+    .suggestion-dp {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #333 center / cover no-repeat;
+      flex-shrink: 0;
+    }
+
+  </style>
+</head>
+<body>
+  <header class="app-bar">
+    <div class="logo">
+      <div class="logo-icon"><span class="material-symbols-outlined">play_arrow</span></div>
+      StreamTube
+    </div>
+    <div class="search-bar">
+      <input type="text" placeholder="Search" readonly value="" />
+      <button type="button" aria-hidden="true"><span class="material-symbols-outlined">search</span></button>
+    </div>
+    <div class="proto-controls">
+      <fieldset aria-label="Layout">
+        <label><input type="radio" name="layoutMode" value="default" /> Default</label>
+        <label><input type="radio" name="layoutMode" value="sidebar-comments" checked /> Sidebar comments</label>
+        <label><input type="radio" name="layoutMode" value="fixed-comments" /> Fixed comments</label>
+      </fieldset>
+      <label><input type="checkbox" id="playerOverlayToggle" /> Player overlay</label>
+      <label id="autoscrollLabel"><input type="checkbox" id="autoscrollToggle" checked /> Autoscroll</label>
+    </div>
+  </header>
+
+  <main class="layout" id="layoutRoot" data-layout="sidebar-comments" data-player-overlay="off" data-autoscroll="on">
+    <div class="player-region">
+      <div class="player-shell" id="player">
+        <video
+          class="player-video"
+          id="video"
+          playsinline
+          preload="auto"
+          src="sample.mp4"
+        ></video>
+
+        <div class="sync-overlay" id="syncOverlay" aria-live="polite"></div>
+
+        <div class="controls-layer">
+          <div class="seek-fold">
+            <div class="seek-track" id="seekTrack">
+              <div class="seek-bar" aria-hidden="true"></div>
+              <div class="seek-thumb" id="seekThumb" aria-hidden="true"></div>
+              <div class="seek-markers" id="seekMarkers"></div>
+            </div>
+            <div class="time-row">
+              <div class="time-row-left">
+                <button type="button" class="icon-btn" id="playBtn" aria-label="Play">
+                  <span class="material-symbols-outlined" id="playIcon">play_arrow</span>
+                </button>
+                <span id="timeDisplay">0:00 / 0:52</span>
+                <span class="sync-chip"><span class="material-symbols-outlined">forum</span><span id="markerCount">0</span> synced</span>
+              </div>
+              <span id="nearestLabel"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="meta-region">
+      <div class="video-meta">
+        <h1 class="video-title">Halcyon — Official Trailer</h1>
+        <div class="channel-row">
+          <div class="channel-avatar" id="channelAvatar" aria-hidden="true">HS</div>
+          <div>
+            <div class="channel-name">Halcyon Studio</div>
+            <div class="subscribers">1.2M subscribers</div>
+          </div>
+          <button type="button" class="md-filled-btn">Subscribe</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="comments-region" id="commentsRegion">
+      <section class="comments-section" aria-label="Comments">
+        <div class="comments-header">
+          <h2 id="commentCount">15 Comments</h2>
+          <div class="filter-chips">
+            <button type="button" class="md-chip" data-filter="all">All</button>
+            <button type="button" class="md-chip selected" data-filter="synced">Synced</button>
+          </div>
+        </div>
+
+        <div class="comment-list-scroll">
+          <div class="comment-list" id="commentList"></div>
+        </div>
+
+        <div class="compose">
+          <div class="compose-avatar">Y</div>
+          <div class="compose-field">
+            <input type="text" id="composeInput" placeholder="Add a comment… Try: Love the part at 0:22!" autocomplete="off" />
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <aside class="recs-region" id="recsRegion" aria-label="Suggested videos">
+      <!-- filled by JS -->
+    </aside>
+  </main>
+
+  <script>
+    // Local Sintel trailer (~52s). Comments spaced ~10–15s for the prototype.
+    let DURATION = 52;
+
+    const COMMENTS = [
+      { id: 1, author: 'Alex Chen', initial: 'A', color: '#e53935', when: '2 days ago', text: 'The cold open at 0:10 already hooks you.' },
+      { id: 2, author: 'Casey Wu', initial: 'C', color: '#5e35b1', when: '12 hours ago', text: 'Lighting at 0:22 is unreal — pause there.' },
+      { id: 3, author: 'Sam Rivera', initial: 'S', color: '#8e24aa', when: '1 day ago', text: 'The score drop around 0:35 hits so hard.' },
+      { id: 4, author: 'Jordan Lee', initial: 'J', color: '#3949ab', when: '1 day ago', text: 'Best frame is 0:45 — that close-up.' },
+      { id: 5, author: 'Dev Notes', initial: 'D', color: '#546e7a', when: '6 hours ago', text: 'No timestamp but great trailer overall.' },
+      { id: 6, author: 'Riley Park', initial: 'R', color: '#f4511e', when: '18 hours ago', text: '9:99 is nonsense — real money shot is still 0:45 though.' },
+      { id: 7, author: 'Morgan Blake', initial: 'M', color: '#00897b', when: '3 hours ago', text: 'Camera push at 0:05 is so confident.' },
+      { id: 8, author: 'Priya Nair', initial: 'P', color: '#6d4c41', when: '5 hours ago', text: 'That silhouette at 0:18 deserves a poster.' },
+      { id: 9, author: 'Theo Ng', initial: 'T', color: '#1565c0', when: '8 hours ago', text: 'Anyone else rewatching from 0:28 just for the atmosphere?' },
+      { id: 10, author: 'Quinn Ortiz', initial: 'Q', color: '#ad1457', when: '1 day ago', text: 'Color grade goes wild around 0:40.' },
+      { id: 11, author: 'Harper Diaz', initial: 'H', color: '#2e7d32', when: '4 hours ago', text: 'Trailer pacing is excellent end to end.' },
+      { id: 12, author: 'Noah Kim', initial: 'N', color: '#ef6c00', when: '9 hours ago', text: '0:15 has the nicest depth of field.' },
+      { id: 13, author: 'Avery Brooks', initial: 'B', color: '#4527a0', when: '2 days ago', text: 'I show this clip in every motion class I teach.' },
+      { id: 14, author: 'Jamie Cole', initial: 'JC', color: '#00838f', when: '7 hours ago', text: 'The cut into 0:50 feels like a mic drop.' },
+      { id: 15, author: 'Sky Patel', initial: 'SP', color: '#c62828', when: '11 hours ago', text: 'Sound design alone sells the whole world.' },
+    ];
+
+    const SUGGESTIONS = [
+      { title: 'Northwind — Teaser Trailer', channel: 'Northwind Pictures', dur: '1:42', mark: 'NP', sky: ['#7f95b8', '#d7c4a3'], hill: '#3d4c63', dp: ['#2c3f5c', '#8aa0c0'] },
+      { title: 'Lowtide — Official Trailer', channel: 'Harbor & Pine', dur: '2:18', mark: 'HP', sky: ['#6f8f9a', '#c9b7a2'], hill: '#2f4650', dp: ['#1f4d4a', '#7daba4'] },
+      { title: 'The Last Lantern — Final Trailer', channel: 'Halcyon Studio', dur: '2:31', mark: 'HS', sky: ['#3c4258', '#c47b4a'], hill: '#1c2030', dp: ['#24365c', '#8ea4c8'] },
+      { title: 'Paper Cities — Official Trailer', channel: 'Milestone Films', dur: '2:05', mark: 'MF', sky: ['#8e7a9a', '#e4d2c4'], hill: '#4a3d55', dp: ['#5a3d55', '#c4a4b4'] },
+      { title: 'Silver Orchard — Teaser', channel: 'Orchard House', dur: '1:16', mark: 'OH', sky: ['#9aa7b2', '#efe6d6'], hill: '#5c6758', dp: ['#3e5344', '#a9c2a4'] },
+      { title: 'After the Rain — Official Trailer', channel: 'Northwind Pictures', dur: '2:24', mark: 'NP', sky: ['#5d7394', '#b7c6d6'], hill: '#2a3548', dp: ['#2c3f5c', '#8aa0c0'] },
+    ];
+
+    const TIMESTAMP_RE = /(?:(\d{1,2}):)?(\d{1,2}):(\d{2})\b/g;
+
+    function parseTimestamp(_match, h, m, s) {
+      const hours = h ? parseInt(h, 10) : 0;
+      const mins = parseInt(m, 10);
+      const secs = parseInt(s, 10);
+      if (secs > 59 || mins > 59) return null;
+      return hours * 3600 + mins * 60 + secs;
+    }
+
+    function extractTimestamps(text) {
+      const found = [];
+      let m;
+      const re = new RegExp(TIMESTAMP_RE.source, 'g');
+      while ((m = re.exec(text)) !== null) {
+        const sec = parseTimestamp(m[0], m[1], m[2], m[3]);
+        if (sec !== null && sec <= DURATION) found.push({ seconds: sec, raw: m[0] });
+      }
+      return found;
+    }
+
+    function formatTime(seconds) {
+      const s = Math.floor(Math.max(0, Math.min(seconds, DURATION || seconds)));
+      const h = Math.floor(s / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      const sec = s % 60;
+      if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+      return `${m}:${String(sec).padStart(2, '0')}`;
+    }
+
+    function enrichComments(raw) {
+      return raw.map((c) => {
+        const stamps = extractTimestamps(c.text);
+        const primary = stamps[0] || null;
+        return { ...c, stamps, syncTime: primary ? primary.seconds : null };
+      });
+    }
+
+    let comments = enrichComments(COMMENTS);
+    let currentTime = 0;
+    let playing = false;
+    let filter = 'synced';
+    let lastActiveId = null;
+    let pinnedScrollId = null;
+    let scrollAnim = 0;
+    const SCROLL_MS = 320;
+    let seeking = false;
+
+    const video = document.getElementById('video');
+    const seekTrack = document.getElementById('seekTrack');
+    const seekThumb = document.getElementById('seekThumb');
+    const timeDisplay = document.getElementById('timeDisplay');
+    const seekMarkers = document.getElementById('seekMarkers');
+    const commentList = document.getElementById('commentList');
+    const syncOverlay = document.getElementById('syncOverlay');
+    const playBtn = document.getElementById('playBtn');
+    const playIcon = document.getElementById('playIcon');
+    const markerCount = document.getElementById('markerCount');
+    const nearestLabel = document.getElementById('nearestLabel');
+    const composeInput = document.getElementById('composeInput');
+
+
+    function syncedComments() {
+      return comments.filter((c) => c.syncTime !== null);
+    }
+
+    function placeholderThumb(a, b, hill) {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180">
+        <defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/>
+        </linearGradient></defs>
+        <rect width="320" height="180" fill="url(#sky)"/>
+        <circle cx="246" cy="46" r="18" fill="#fff" opacity="0.72"/>
+        <path d="M0 128 L78 74 L142 118 L214 62 L320 132 V180 H0Z" fill="${hill}" opacity="0.88"/>
+        <path d="M0 150 L96 112 L168 146 L250 108 L320 154 V180 H0Z" fill="#0e1218" opacity="0.55"/>
+      </svg>`;
+      return `url('data:image/svg+xml,${encodeURIComponent(svg)}')`;
+    }
+
+    function placeholderDp(a, b, mark) {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+        <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/>
+        </linearGradient></defs>
+        <rect width="64" height="64" rx="32" fill="url(#g)"/>
+        <text x="32" y="40" text-anchor="middle" font-family="Roboto,sans-serif" font-size="22" font-weight="700" fill="#fff">${mark}</text>
+      </svg>`;
+      return `url('data:image/svg+xml,${encodeURIComponent(svg)}')`;
+    }
+
+    function renderSuggestions() {
+      const aside = document.getElementById('recsRegion');
+      document.getElementById('channelAvatar').style.backgroundImage = placeholderDp('#24365c', '#8ea4c8', 'HS');
+      aside.innerHTML = SUGGESTIONS.map(
+        (s) => `
+        <div class="suggestion">
+          <div class="suggestion-thumb" style="background-image:${placeholderThumb(s.sky[0], s.sky[1], s.hill)}">
+            <span class="suggestion-dur">${s.dur}</span>
+          </div>
+          <div class="suggestion-meta">
+            <div class="suggestion-title">${s.title}</div>
+            <div class="suggestion-channel">
+              <span class="suggestion-dp" style="background-image:${placeholderDp(s.dp[0], s.dp[1], s.mark)}"></span>
+              <span>${s.channel}</span>
+            </div>
+          </div>
+        </div>`
+      ).join('');
+    }
+
+    function applyLayoutMode(mode) {
+      const root = document.getElementById('layoutRoot');
+      const recs = document.getElementById('recsRegion');
+      root.dataset.layout = mode;
+      recs.classList.toggle('horizontal', mode !== 'default');
+      syncFixedCommentsOffset();
+      syncAutoscrollAvailability();
+      pinSyncedComment(true);
+    }
+
+    function syncFixedCommentsOffset() {
+      const root = document.getElementById('layoutRoot');
+      const comments = document.getElementById('commentsRegion');
+      if (root.dataset.layout !== 'fixed-comments') {
+        comments.style.top = '';
+        return;
+      }
+      if (window.matchMedia('(max-width: 1200px)').matches) {
+        comments.style.top = '';
+        return;
+      }
+      const barBottom = document.querySelector('.app-bar').getBoundingClientRect().bottom;
+      comments.style.top = `${Math.round(barBottom + 8)}px`;
+    }
+
+    function autoscrollLayouts() {
+      const mode = document.getElementById('layoutRoot').dataset.layout;
+      return mode === 'sidebar-comments' || mode === 'fixed-comments';
+    }
+
+    function syncAutoscrollAvailability() {
+      const label = document.getElementById('autoscrollLabel');
+      const input = document.getElementById('autoscrollToggle');
+      const available = autoscrollLayouts();
+      input.disabled = !available;
+      label.classList.toggle('is-disabled', !available);
+    }
+
+    function applyAutoscroll(enabled) {
+      document.getElementById('layoutRoot').dataset.autoscroll = enabled ? 'on' : 'off';
+      if (enabled) pinSyncedComment(true);
+      else {
+        pinnedScrollId = null;
+        cancelAnimationFrame(scrollAnim);
+        clearScrollSpacer();
+      }
+    }
+
+    function clearScrollSpacer() {
+      const spacer = document.querySelector('.comment-scroll-spacer');
+      if (spacer) spacer.remove();
+    }
+
+    function animateCommentScroll(scroller, top) {
+      cancelAnimationFrame(scrollAnim);
+      const start = scroller.scrollTop;
+      const delta = top - start;
+      if (Math.abs(delta) < 1) {
+        scroller.scrollTop = top;
+        return;
+      }
+      const t0 = performance.now();
+      const step = (now) => {
+        const p = Math.min(1, (now - t0) / SCROLL_MS);
+        const eased = 1 - Math.pow(1 - p, 3);
+        scroller.scrollTop = start + delta * eased;
+        if (p < 1) scrollAnim = requestAnimationFrame(step);
+      };
+      scrollAnim = requestAnimationFrame(step);
+    }
+
+    function pinSyncedComment(force) {
+      const root = document.getElementById('layoutRoot');
+      const scroller = document.querySelector('.comment-list-scroll');
+      if (!scroller) return;
+      if (root.dataset.autoscroll !== 'on' || filter !== 'synced' || !autoscrollLayouts() || getComputedStyle(scroller).overflowY !== 'auto') {
+        cancelAnimationFrame(scrollAnim);
+        clearScrollSpacer();
+        return;
+      }
+      const target = getActiveComment(currentTime);
+      if (!target) return;
+      if (!force && target.id === pinnedScrollId) return;
+      const el = commentList.querySelector(`.comment-item[data-id="${target.id}"]`);
+      if (!el) return;
+      pinnedScrollId = target.id;
+      let spacer = scroller.querySelector('.comment-scroll-spacer');
+      if (!spacer) {
+        spacer = document.createElement('div');
+        spacer.className = 'comment-scroll-spacer';
+        scroller.appendChild(spacer);
+      }
+      spacer.style.height = `${Math.max(0, scroller.clientHeight - el.offsetHeight)}px`;
+      el.classList.remove('active');
+      void el.offsetWidth;
+      el.classList.add('active');
+      animateCommentScroll(scroller, el.offsetTop);
+    }
+
+    function applyPlayerOverlay(enabled) {
+      document.getElementById('layoutRoot').dataset.playerOverlay = enabled ? 'on' : 'off';
+      if (!enabled) {
+        syncOverlay.classList.remove('visible');
+        syncOverlay.innerHTML = '';
+      }
+    }
+
+    function highlightTimestampsInText(text) {
+      return text.replace(TIMESTAMP_RE, (match) => `<span class="ts-inline">${match}</span>`);
+    }
+
+    function getActiveComment(time) {
+      const synced = syncedComments();
+      if (!synced.length) return null;
+      const windowSec = 4;
+      let best = null;
+      let bestDist = Infinity;
+      for (const c of synced) {
+        const d = Math.abs(c.syncTime - time);
+        if (d <= windowSec && d < bestDist) {
+          bestDist = d;
+          best = c;
+        }
+      }
+      return best;
+    }
+
+    function applyDuration(seconds) {
+      if (!seconds || !isFinite(seconds)) return;
+      DURATION = seconds;
+      comments = comments.map((c) => {
+        const stamps = extractTimestamps(c.text);
+        return { ...c, stamps, syncTime: stamps[0] ? stamps[0].seconds : null };
+      });
+      renderMarkers();
+      updateUI();
+    }
+
+    function renderMarkers() {
+      const synced = syncedComments();
+      markerCount.textContent = synced.length;
+      seekMarkers.innerHTML = synced
+        .map(
+          (c) => `
+        <button type="button" class="seek-marker" data-id="${c.id}" style="left: ${(c.syncTime / DURATION) * 100}%"
+          aria-label="Comment at ${formatTime(c.syncTime)} by ${c.author}">
+          <span class="seek-marker-tooltip">${formatTime(c.syncTime)}</span>
+        </button>`
+        )
+        .join('');
+
+      seekMarkers.querySelectorAll('.seek-marker').forEach((btn) => {
+        btn.addEventListener('pointerdown', (e) => e.stopPropagation());
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const c = comments.find((x) => x.id === Number(btn.dataset.id));
+          if (c) seekTo(c.syncTime);
+        });
+      });
+    }
+
+    function renderComments() {
+      const list = filter === 'synced'
+        ? comments
+            .filter((c) => c.syncTime !== null)
+            .sort((a, b) => a.syncTime - b.syncTime)
+        : comments;
+      const active = getActiveComment(currentTime);
+
+      commentList.innerHTML = list
+        .map((c) => {
+          const isActive = active && active.id === c.id;
+          return `
+          <article class="comment-item ${isActive ? 'active' : ''}" data-id="${c.id}" ${c.syncTime !== null ? `data-time="${c.syncTime}"` : ''}>
+            <div class="comment-avatar" style="background:${c.color}">${c.initial}</div>
+            <div class="comment-body">
+              <div class="comment-author-row">
+                <span class="comment-author">@${c.author.replace(/\s/g, '')}</span>
+                <span class="comment-when">${c.when}</span>
+              </div>
+              <p class="comment-text">${highlightTimestampsInText(c.text)}</p>
+            </div>
+          </article>`;
+        })
+        .join('');
+
+      commentList.querySelectorAll('.comment-item[data-time]').forEach((el) => {
+        el.addEventListener('click', () => seekTo(Number(el.dataset.time)));
+      });
+
+      lastActiveId = active ? active.id : null;
+      pinSyncedComment(true);
+    }
+
+    function renderOverlay(active) {
+      const overlayOn = document.getElementById('layoutRoot').dataset.playerOverlay !== 'off';
+      if (!overlayOn || !active || !playing) {
+        syncOverlay.classList.remove('visible');
+        syncOverlay.innerHTML = '';
+        return;
+      }
+      syncOverlay.classList.add('visible');
+      syncOverlay.innerHTML = `
+        <div class="sync-overlay-card">
+          <div class="sync-overlay-avatar">${active.initial}</div>
+          <div class="sync-overlay-body">
+            <div class="sync-overlay-meta"><strong>${active.author}</strong> · ${formatTime(active.syncTime)}</div>
+            <div class="sync-overlay-text">${active.text.replace(TIMESTAMP_RE, '').trim().slice(0, 120)}${active.text.length > 120 ? '…' : ''}</div>
+          </div>
+        </div>`;
+    }
+
+    function updateMarkerStates(active) {
+      seekMarkers.querySelectorAll('.seek-marker').forEach((btn) => {
+        btn.classList.toggle('active', active && Number(btn.dataset.id) === active.id);
+      });
+    }
+
+    function updateNearestLabel() {
+      const synced = syncedComments();
+      if (!synced.length) {
+        nearestLabel.textContent = '';
+        return;
+      }
+      const upcoming = synced
+        .filter((c) => c.syncTime >= currentTime - 0.5)
+        .sort((a, b) => a.syncTime - b.syncTime)[0];
+      if (upcoming && upcoming.syncTime - currentTime < 15) {
+        nearestLabel.textContent = `Next: ${formatTime(upcoming.syncTime)}`;
+      } else {
+        nearestLabel.textContent = '';
+      }
+    }
+
+    function setProgress(pct) {
+      const clamped = Math.max(0, Math.min(100, pct));
+      seekTrack.style.setProperty('--progress', `${clamped}%`);
+      seekThumb.style.left = `${clamped}%`;
+    }
+
+    function syncChrome(time) {
+      currentTime = time;
+      setProgress(DURATION ? (time / DURATION) * 100 : 0);
+      timeDisplay.textContent = `${formatTime(time)} / ${formatTime(DURATION)}`;
+      updateMarkerStates(getActiveComment(time));
+      updateNearestLabel();
+    }
+
+    function timeFromMouse(e) {
+      const rect = seekTrack.getBoundingClientRect();
+      if (!rect.width || !DURATION) return null;
+      const ratio = (e.clientX - rect.left) / rect.width;
+      if (ratio < -0.02 || ratio > 1.02) return null;
+      return Math.max(0, Math.min(1, ratio)) * DURATION;
+    }
+
+    function highlightActiveComment(active) {
+      commentList.querySelectorAll('.comment-item').forEach((el) => {
+        el.classList.toggle('active', !!(active && Number(el.dataset.id) === active.id));
+      });
+      lastActiveId = active ? active.id : null;
+    }
+
+    // Same model as the reference player: write currentTime while the mouse
+    // is down, and let timeupdate drive the bar again the moment it is released.
+    function seekTo(seconds) {
+      const n = Number(seconds);
+      if (!Number.isFinite(n) || !DURATION) return;
+      const t = Math.max(0, Math.min(n, DURATION));
+      syncChrome(t);
+      refreshCommentChrome();
+      if (Math.abs(video.currentTime - t) > 0.05) {
+        try { video.currentTime = t; } catch (_) {}
+      }
+    }
+
+    function updateUI() {
+      syncChrome(currentTime);
+      const active = getActiveComment(currentTime);
+      renderComments();
+      renderOverlay(active);
+    }
+
+    function refreshCommentChrome() {
+      const active = getActiveComment(currentTime);
+      renderOverlay(active);
+      if ((active ? active.id : null) !== lastActiveId) {
+        renderComments();
+      } else {
+        updateMarkerStates(active);
+        updateNearestLabel();
+        pinSyncedComment(false);
+      }
+    }
+
+    playBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (video.paused) video.play();
+      else video.pause();
+    });
+
+    video.addEventListener('play', () => {
+      playing = true;
+      playIcon.textContent = 'pause';
+      playBtn.setAttribute('aria-label', 'Pause');
+      renderOverlay(getActiveComment(currentTime));
+    });
+
+    video.addEventListener('pause', () => {
+      playing = false;
+      playIcon.textContent = 'play_arrow';
+      playBtn.setAttribute('aria-label', 'Play');
+      if (!seeking) renderOverlay(null);
+    });
+
+    video.addEventListener('ended', () => {
+      playing = false;
+      playIcon.textContent = 'play_arrow';
+      seeking = false;
+      syncChrome(DURATION);
+      updateUI();
+    });
+
+    video.addEventListener('loadedmetadata', () => {
+      applyDuration(video.duration);
+    });
+
+    video.addEventListener('timeupdate', () => {
+      if (seeking) return;
+      syncChrome(video.currentTime);
+      refreshCommentChrome();
+    });
+
+    function onSeekMouseMove(e) {
+      if (!seeking) return;
+      const t = timeFromMouse(e);
+      if (t == null) return;
+      seekTo(t);
+    }
+
+    function onSeekMouseUp() {
+      if (!seeking) return;
+      seeking = false;
+      document.removeEventListener('mousemove', onSeekMouseMove);
+      document.removeEventListener('mouseup', onSeekMouseUp);
+      syncChrome(video.currentTime);
+      refreshCommentChrome();
+    }
+
+    function onSeekMouseDown(e) {
+      if (e.button !== 0) return;
+      if (e.target.closest('.seek-marker')) return;
+      const t = timeFromMouse(e);
+      if (t == null) return;
+      e.preventDefault();
+      seeking = true;
+      seekTo(t);
+      document.addEventListener('mousemove', onSeekMouseMove);
+      document.addEventListener('mouseup', onSeekMouseUp);
+    }
+
+    seekTrack.addEventListener('mousedown', onSeekMouseDown);
+
+    window.addEventListener('scroll', syncFixedCommentsOffset, { passive: true });
+    window.addEventListener('resize', () => {
+      syncFixedCommentsOffset();
+      pinSyncedComment(true);
+    });
+
+    document.querySelectorAll('.md-chip').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('.md-chip').forEach((c) => c.classList.remove('selected'));
+        chip.classList.add('selected');
+        filter = chip.dataset.filter;
+        renderComments();
+      });
+    });
+
+    composeInput.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' || !composeInput.value.trim()) return;
+      const text = composeInput.value.trim();
+      const stamps = extractTimestamps(text);
+      const newComment = {
+        id: Date.now(),
+        author: 'You',
+        initial: 'Y',
+        color: '#26a69a',
+        when: 'Just now',
+        text,
+      };
+      comments = [enrichComments([newComment])[0], ...comments];
+      composeInput.value = '';
+      document.getElementById('commentCount').textContent = `${comments.length} Comments`;
+      renderMarkers();
+      if (stamps.length) seekTo(stamps[0].seconds);
+      else updateUI();
+    });
+
+    document.querySelectorAll('input[name="layoutMode"]').forEach((radio) => {
+      radio.addEventListener('change', () => {
+        if (radio.checked) applyLayoutMode(radio.value);
+      });
+    });
+
+    document.getElementById('playerOverlayToggle').addEventListener('change', (e) => {
+      applyPlayerOverlay(e.target.checked);
+    });
+
+    document.getElementById('autoscrollToggle').addEventListener('change', (e) => {
+      applyAutoscroll(e.target.checked);
+    });
+
+    renderSuggestions();
+    renderMarkers();
+    applyLayoutMode('sidebar-comments');
+    applyPlayerOverlay(false);
+    applyAutoscroll(true);
+    updateUI();
+  </script>
+</body>
+</html>
